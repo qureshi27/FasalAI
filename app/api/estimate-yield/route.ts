@@ -11,7 +11,9 @@ const Body = z.object({
   ndvi: z.number().min(0).max(1).optional(),
   healthFactor: z.number().min(0.4).max(1.2).optional(),
   landCover: z.string().optional(),
-  isHarvested: z.boolean().optional()
+  isHarvested: z.boolean().optional(),
+  treeCount: z.number().int().nonnegative().nullable().optional(),
+  treeCountConfidence: z.enum(["exact", "estimate", "unable", "n/a"]).optional()
 });
 
 export async function POST(req: NextRequest) {

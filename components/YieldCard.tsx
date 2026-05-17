@@ -1,4 +1,4 @@
-import { Sparkles, TrendingUp, Coins, Activity, AlertTriangle, Wheat } from "lucide-react";
+import { Sparkles, TrendingUp, Coins, Activity, AlertTriangle, Wheat, TreePine } from "lucide-react";
 import type { YieldResult } from "@/lib/yield";
 import { formatPKR } from "@/lib/yield";
 import { CROPS, type CropId } from "@/lib/crops";
@@ -46,10 +46,24 @@ export function YieldCard({ result, confidencePct }: { result: YieldResult; conf
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat icon={Activity} label="Area" value={`${result.areaAcres}`} unit="acres" />
-          <Stat icon={TrendingUp} label="Yield rate" value={`${result.yieldMannPerAcre}`} unit="mann/acre" />
+          {crop.kind === "orchard" && result.treeCount ? (
+            <Stat icon={TreePine} label="Trees" value={`${result.treeCount.toLocaleString("en-PK")}`} unit={crop.id === "banana" ? "plants" : "trees"} />
+          ) : (
+            <Stat icon={TrendingUp} label="Yield rate" value={`${result.yieldMannPerAcre}`} unit="mann/acre" />
+          )}
           <Stat icon={Sparkles} label="Total" value={`${result.totalMann.toLocaleString("en-PK")}`} unit="mann" highlight />
           <Stat icon={Coins} label="Value" value={formatPKR(result.estimatedValuePKR)} unit="" />
         </div>
+
+        {crop.kind === "orchard" && result.treeCount !== null && result.treeCount !== undefined && (
+          <div className="mt-3 text-[11px] text-muted-dim">
+            Tree count source: {
+              result.treeCountSource === "ai_exact" ? "✓ AI counted each tree (high accuracy)" :
+              result.treeCountSource === "ai_estimate" ? "AI estimated from visible grid" :
+              "Density estimate (AI could not count from this image)"
+            }
+          </div>
+        )}
 
         <div className="mt-6 pt-6 border-t border-white/5 grid md:grid-cols-2 gap-4">
           <div>

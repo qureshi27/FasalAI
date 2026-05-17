@@ -49,7 +49,9 @@ export default function UploadPage() {
           areaAcres,
           ndvi: id.ndviEstimate,
           landCover: id.landCover,
-          isHarvested: id.isHarvested
+          isHarvested: id.isHarvested,
+          treeCount: id.treeCount,
+          treeCountConfidence: id.treeCountConfidence
         })
       });
       if (!yRes.ok) throw new Error(`Yield estimation failed (${yRes.status})`);

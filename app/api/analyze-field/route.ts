@@ -36,7 +36,9 @@ export async function POST(req: NextRequest) {
         growthStage: "user-specified",
         visualCues: "User-overridden crop selection",
         alternativeCrops: [],
-        ndviEstimate: c.ndviOptimal * 0.85
+        ndviEstimate: c.ndviOptimal * 0.85,
+        treeCount: null,
+        treeCountConfidence: "n/a" as const
       };
     } else {
       const dataUrl = await fetchPolygonSnapshot(polygon.coordinates);
@@ -48,7 +50,9 @@ export async function POST(req: NextRequest) {
       areaAcres: polygon.areaAcres,
       ndvi: identification.ndviEstimate,
       landCover: identification.landCover,
-      isHarvested: identification.isHarvested
+      isHarvested: identification.isHarvested,
+      treeCount: identification.treeCount,
+      treeCountConfidence: identification.treeCountConfidence
     });
 
     return NextResponse.json({ identification, yield: yieldResult });

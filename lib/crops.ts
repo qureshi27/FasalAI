@@ -18,6 +18,12 @@ export type CropId =
 export type Season = "rabi" | "kharif" | "annual";
 export type CropKind = "field_crop" | "orchard";
 
+export interface OrchardSpec {
+  kgPerTree: number;
+  defaultTreesPerAcre: number;
+  spacingFeet: number;
+}
+
 export interface CropInfo {
   id: CropId;
   name: string;
@@ -32,6 +38,7 @@ export interface CropInfo {
   visualCues: string;
   emoji: string;
   primaryRegions: string[];
+  orchard?: OrchardSpec;
 }
 
 export const CROPS: Record<CropId, CropInfo> = {
@@ -121,15 +128,17 @@ export const CROPS: Record<CropId, CropInfo> = {
     baselineYieldMannPerAcre: { min: 120, max: 220, avg: 160 },
     ndviOptimal: 0.78, pricePerMannPKR: 4500,
     visualCues: "TREES in clear grid pattern (~80 trees/acre, 20ft spacing). Dark dense canopies casting circular shadows. Visible spacing between trees.",
-    emoji: "🥭", primaryRegions: ["Multan", "Khanewal", "Mirpurkhas", "Rahim Yar Khan"]
+    emoji: "🥭", primaryRegions: ["Multan", "Khanewal", "Mirpurkhas", "Rahim Yar Khan"],
+    orchard: { kgPerTree: 100, defaultTreesPerAcre: 80, spacingFeet: 22 }
   },
   citrus_kinnow: {
     id: "citrus_kinnow", name: "Kinnow / Citrus Orchard", urduName: "کنو کا باغ", kind: "orchard", season: "annual",
     sowingMonths: [], harvestMonths: [12, 1, 2],
     baselineYieldMannPerAcre: { min: 150, max: 250, avg: 187 },
     ndviOptimal: 0.75, pricePerMannPKR: 2500,
-    visualCues: "Smaller TREES in tighter grid (~150 trees/acre, 12-15ft spacing). Lighter green than mango.",
-    emoji: "🍊", primaryRegions: ["Sargodha", "Bhalwal", "Toba Tek Singh"]
+    visualCues: "Smaller TREES in tighter grid (~130 trees/acre, 12-15ft spacing). Lighter green than mango.",
+    emoji: "🍊", primaryRegions: ["Sargodha", "Bhalwal", "Toba Tek Singh"],
+    orchard: { kgPerTree: 55, defaultTreesPerAcre: 130, spacingFeet: 15 }
   },
   dates: {
     id: "dates", name: "Date Palm", urduName: "کھجور", kind: "orchard", season: "annual",
@@ -137,15 +146,17 @@ export const CROPS: Record<CropId, CropInfo> = {
     baselineYieldMannPerAcre: { min: 80, max: 180, avg: 130 },
     ndviOptimal: 0.65, pricePerMannPKR: 5500,
     visualCues: "Tall palms with star-shaped fronds, wide spacing, arid context",
-    emoji: "🌴", primaryRegions: ["Khairpur (Sindh)", "DG Khan", "Turbat"]
+    emoji: "🌴", primaryRegions: ["Khairpur (Sindh)", "DG Khan", "Turbat"],
+    orchard: { kgPerTree: 80, defaultTreesPerAcre: 60, spacingFeet: 26 }
   },
   banana: {
     id: "banana", name: "Banana", urduName: "کیلا", kind: "orchard", season: "annual",
     sowingMonths: [2, 3], harvestMonths: [9, 10, 11, 12],
     baselineYieldMannPerAcre: { min: 300, max: 600, avg: 450 },
     ndviOptimal: 0.82, pricePerMannPKR: 1800,
-    visualCues: "Very dense bright green canopy, wide leaves visible, tight spacing",
-    emoji: "🍌", primaryRegions: ["Sindh (Thatta, Hyderabad, Tando Allahyar)"]
+    visualCues: "Very dense bright green canopy, wide leaves visible, tight spacing — treated as plants per acre, not single trees",
+    emoji: "🍌", primaryRegions: ["Sindh (Thatta, Hyderabad, Tando Allahyar)"],
+    orchard: { kgPerTree: 25, defaultTreesPerAcre: 700, spacingFeet: 6 }
   },
   guava: {
     id: "guava", name: "Guava Orchard", urduName: "امرود کا باغ", kind: "orchard", season: "annual",
@@ -153,7 +164,8 @@ export const CROPS: Record<CropId, CropInfo> = {
     baselineYieldMannPerAcre: { min: 100, max: 200, avg: 140 },
     ndviOptimal: 0.74, pricePerMannPKR: 2200,
     visualCues: "Small trees in grid, lower canopy than mango",
-    emoji: "🫒", primaryRegions: ["Sharaqpur", "Kohat", "Larkana"]
+    emoji: "🫒", primaryRegions: ["Sharaqpur", "Kohat", "Larkana"],
+    orchard: { kgPerTree: 70, defaultTreesPerAcre: 110, spacingFeet: 18 }
   }
 };
 

@@ -22,6 +22,8 @@ export interface CropIdentification {
   visualCues: string;
   alternativeCrops: { cropId: CropId; confidence: number }[];
   ndviEstimate: number;
+  treeCount: number | null;
+  treeCountConfidence: "exact" | "estimate" | "unable" | "n/a";
   raw?: string;
 }
 
@@ -56,32 +58,45 @@ ${orchardMenu}
 
 "germination" | "tillering" | "vegetative" | "flowering" | "grain_filling" | "maturity" | "harvested" | "post_harvest" | "n/a_orchard"
 
+# STEP 5 — If orchard, COUNT THE TREES
+
+Inside the red polygon, count the individual trees. Each tree is a single dark circular canopy with visible shadow.
+
+- If you can count them confidently (typically when there are 2–40 trees): give the exact integer and set treeCountConfidence: "exact".
+- If there are too many to count one-by-one but you can estimate from the visible grid (count one row, multiply by number of rows): give your best integer estimate and set treeCountConfidence: "estimate".
+- If the polygon is too small, image too unclear, or trees overlap into one mass: set treeCount: null and treeCountConfidence: "unable".
+- If NOT an orchard: treeCount: null, treeCountConfidence: "n/a".
+
 # CRITICAL RULES
 
-1. If you see TREES in a grid pattern with circular canopies and visible spacing → it is an ORCHARD, NOT wheat or any field crop.
-2. If you see CUT STUBBLE, plowed/bare soil, or brown uniform residue → it is HARVESTED. Do not guess what was grown.
-3. NEVER default to "wheat" when uncertain. Return cropId: "unknown" and landCover: "unknown" if you cannot tell.
-4. Pakistan harvest calendar context — adjust expectations to the imagery date:
-   - Wheat: harvested April–May (so May images usually show stubble or already-plowed fields)
+1. If you see TREES in a grid pattern → ORCHARD. NEVER call this wheat or any field crop.
+2. If you see CUT STUBBLE, plowed/bare soil, brown uniform residue → HARVESTED. Do not guess what was grown.
+3. If you see BARE SOIL, no vegetation, no recent crop residue → FALLOW. Do not invent a crop.
+4. NEVER default to "wheat" when uncertain. Return cropId: "unknown" and landCover: "unknown" if you cannot tell.
+5. If your NDVI estimate is below 0.25, the field is almost certainly NOT a standing crop — set landCover to "fallow" or "harvested" instead.
+6. Pakistan harvest calendar context — adjust to the imagery date:
+   - Wheat: harvested April–May (May images usually show stubble or already-plowed fields, NOT standing wheat)
    - Cotton: standing June–November
    - Sugarcane: standing most of the year, very tall
    - Mango/citrus: orchards visible year-round
-5. Confidence should be LOW (0.2–0.5) if the image is ambiguous. Be honest about uncertainty.
+7. Confidence should be LOW (0.2–0.5) if the image is ambiguous. Be honest about uncertainty.
 
 # OUTPUT
 
 Respond with strict JSON ONLY (no prose, no markdown):
 
 {
-  "landCover": "<one of the 7 categories above>",
+  "landCover": "<one of the 7 categories>",
   "cropId": "<one of the crop ids, or 'unknown'>",
   "isOrchard": <true if landCover is orchard>,
   "isHarvested": <true if landCover is harvested>,
   "confidence": <0..1>,
   "growthStage": "<stage>",
-  "visualCues": "<concrete description: tree pattern? stubble? row spacing? soil color? what you actually see inside the red polygon>",
+  "visualCues": "<concrete description: tree pattern, stubble, row spacing, soil color, what you actually see inside the red polygon>",
   "alternativeCrops": [{"cropId": "<id>", "confidence": <0..1>}],
-  "ndviEstimate": <0..1, your read of vegetation health from the greenness inside the polygon>
+  "ndviEstimate": <0..1, vegetation health from the greenness inside the polygon>,
+  "treeCount": <integer | null>,
+  "treeCountConfidence": "exact" | "estimate" | "unable" | "n/a"
 }`;
 
 export async function identifyCropFromImage(imageBase64DataUrl: string): Promise<CropIdentification> {
@@ -149,6 +164,16 @@ function parseCropResponse(raw: string): CropIdentification {
     const rawCrop = String(parsed.cropId ?? "unknown");
     const cropId: CropId | "unknown" = validIds.has(rawCrop) ? (rawCrop as CropId) : "unknown";
 
+    const validTreeCounts = new Set(["exact", "estimate", "unable", "n/a"]);
+    const treeCountConfidence = validTreeCounts.has(parsed.treeCountConfidence)
+      ? (parsed.treeCountConfidence as CropIdentification["treeCountConfidence"])
+      : (landCover === "orchard" ? "unable" : "n/a");
+    const rawTreeCount = parsed.treeCount;
+    const treeCount =
+      typeof rawTreeCount === "number" && rawTreeCount >= 0 && rawTreeCount < 100_000
+        ? Math.round(rawTreeCount)
+        : null;
+
     return {
       landCover,
       cropId,
@@ -164,6 +189,8 @@ function parseCropResponse(raw: string): CropIdentification {
             .map((a: any) => ({ cropId: a.cropId as CropId, confidence: clamp01(a.confidence ?? 0) }))
         : [],
       ndviEstimate: clamp01(parsed.ndviEstimate ?? 0.4),
+      treeCount,
+      treeCountConfidence,
       raw
     };
   } catch (e: any) {
@@ -182,6 +209,8 @@ function uncertain(raw: string, reason: string): CropIdentification {
     visualCues: reason,
     alternativeCrops: [],
     ndviEstimate: 0.3,
+    treeCount: null,
+    treeCountConfidence: "n/a",
     raw
   };
 }
