@@ -245,9 +245,16 @@ export default function MapPage() {
                             )}
                           </div>
                           {a.yield.status === "estimated" && (
-                            <div className="text-xs font-mono text-accent-glow mt-0.5">
-                              {a.yield.totalMann.toLocaleString("en-PK")} mann
-                            </div>
+                            <>
+                              <div className="text-xs font-mono text-accent-glow mt-0.5">
+                                {a.yield.totalMann.toLocaleString("en-PK")} mann
+                              </div>
+                              {a.yield.treeCount ? (
+                                <div className="text-[10px] text-muted-dim mt-0.5">
+                                  {a.yield.treeCount.toLocaleString("en-PK")} trees
+                                </div>
+                              ) : null}
+                            </>
                           )}
                         </div>
                       ) : isAnalyzing ? (
@@ -309,6 +316,7 @@ function ObservationStrip({ identification }: { identification: CropIdentificati
     non_agricultural: "Non-agricultural",
     unknown: "Unclear"
   };
+  const isOrchard = identification.landCover === "orchard" || identification.isOrchard;
   return (
     <div className="rounded-2xl border border-white/10 bg-bg-elevated p-5">
       <div className="text-xs uppercase tracking-wider text-muted-dim mb-3">AI observation</div>
@@ -329,6 +337,19 @@ function ObservationStrip({ identification }: { identification: CropIdentificati
           <div className="text-muted-dim text-[10px] uppercase tracking-wider mb-1">Confidence</div>
           <div className="font-mono">{Math.round(identification.confidence * 100)}%</div>
         </div>
+        {isOrchard && (
+          <div className="col-span-2 pt-3 border-t border-white/5">
+            <div className="text-muted-dim text-[10px] uppercase tracking-wider mb-1">AI tree count</div>
+            <div className="font-mono text-accent-glow">
+              {identification.treeCount !== null
+                ? `${identification.treeCount.toLocaleString("en-PK")} trees`
+                : "Could not count"}
+              {identification.treeCountConfidence !== "n/a" && (
+                <span className="text-[10px] text-muted-dim ml-2 font-sans">({identification.treeCountConfidence})</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       {identification.visualCues && (
         <div className="mt-3 pt-3 border-t border-white/5 text-xs text-muted leading-relaxed">

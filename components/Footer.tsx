@@ -17,6 +17,12 @@ export function Footer() {
           <p className="text-sm text-muted max-w-sm">
             AI-powered crop yield estimation for Pakistani farmers. Built with NVIDIA AI and live satellite data.
           </p>
+          <div className="mt-5 pt-5 border-t border-white/5 max-w-sm">
+            <div className="text-[10px] uppercase tracking-wider text-muted-dim mb-1.5">Developed by</div>
+            <div className="text-sm font-semibold text-white">Dr. Muhammad Awais</div>
+            <div className="text-xs text-muted">AI Architect</div>
+            <div className="text-xs text-muted-dim">Department of Intelligent Systems</div>
+          </div>
         </div>
         <div>
           <h4 className="text-xs uppercase tracking-wider text-muted-dim mb-3">Product</h4>
@@ -38,7 +44,8 @@ export function Footer() {
       <div className="border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-6 text-xs text-muted-dim flex flex-wrap items-center justify-between gap-3">
           <span>© {new Date().getFullYear()} FasalAI · Made for Pakistan 🇵🇰</span>
-          <span>1 mann = 40 kg · Baseline data: Pakistan Bureau of Statistics</span>
+          <span className="text-center">Developed by <span className="text-white font-medium">Dr. Muhammad Awais</span> · AI Architect · Department of Intelligent Systems</span>
+          <span>1 mann = 40 kg</span>
         </div>
       </div>
     </footer>
