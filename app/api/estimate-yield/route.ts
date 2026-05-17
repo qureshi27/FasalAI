@@ -13,7 +13,8 @@ const Body = z.object({
   landCover: z.string().optional(),
   isHarvested: z.boolean().optional(),
   treeCount: z.number().int().nonnegative().nullable().optional(),
-  treeCountConfidence: z.enum(["exact", "estimate", "unable", "n/a"]).optional()
+  treeCountConfidence: z.enum(["exact", "estimate", "unable", "n/a"]).optional(),
+  isUserTreeOverride: z.boolean().optional()
 });
 
 export async function POST(req: NextRequest) {

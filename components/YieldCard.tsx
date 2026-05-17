@@ -58,6 +58,7 @@ export function YieldCard({ result, confidencePct }: { result: YieldResult; conf
         {crop.kind === "orchard" && result.treeCount !== null && result.treeCount !== undefined && (
           <div className="mt-3 text-[11px] text-muted-dim">
             Tree count source: {
+              result.treeCountSource === "user_override" ? "✓ User-specified count (authoritative)" :
               result.treeCountSource === "ai_exact" ? "✓ AI counted each tree (high accuracy)" :
               result.treeCountSource === "ai_estimate" ? "AI estimated from visible grid" :
               "Density estimate (AI could not count from this image)"

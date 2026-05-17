@@ -11,6 +11,7 @@ export interface YieldInput {
   isHarvested?: boolean;
   treeCount?: number | null;
   treeCountConfidence?: "exact" | "estimate" | "unable" | "n/a";
+  isUserTreeOverride?: boolean;
 }
 
 export interface YieldResult {
@@ -27,7 +28,7 @@ export interface YieldResult {
   health: "poor" | "moderate" | "good" | "excellent" | "n/a";
   notes: string[];
   treeCount?: number | null;
-  treeCountSource?: "ai_exact" | "ai_estimate" | "density_fallback" | "n/a";
+  treeCountSource?: "ai_exact" | "ai_estimate" | "density_fallback" | "user_override" | "n/a";
 }
 
 const NO_VEGETATION_NDVI = 0.22;
@@ -132,13 +133,21 @@ function estimateOrchard(
   let source: NonNullable<YieldResult["treeCountSource"]>;
   let usedCountNote: string;
 
-  if (input.treeCount && input.treeCount > 0 && input.treeCountConfidence !== "n/a") {
+  if (input.isUserTreeOverride && input.treeCount && input.treeCount > 0) {
+    treeCount = input.treeCount;
+    source = "user_override";
+    usedCountNote = `User-specified tree count: ${input.treeCount} trees (overrides AI).`;
+  } else if (input.treeCount && input.treeCount > 0 && input.treeCountConfidence !== "n/a") {
     const aiCount = input.treeCount;
     const ratio = aiCount / Math.max(densityCount, 1);
     const reasonable = ratio >= 0.3 && ratio <= 2.5;
-    if (reasonable || input.treeCountConfidence === "exact") {
+    if (input.treeCountConfidence === "exact") {
       treeCount = aiCount;
-      source = input.treeCountConfidence === "exact" ? "ai_exact" : "ai_estimate";
+      source = "ai_exact";
+      usedCountNote = `AI counted ${aiCount} trees in the polygon (exact). Density-based check: ${densityCount} expected.`;
+    } else if (reasonable) {
+      treeCount = aiCount;
+      source = "ai_estimate";
       usedCountNote = `AI counted ${aiCount} trees in the polygon (${input.treeCountConfidence}). Density-based check: ${densityCount} expected — within reasonable range.`;
     } else {
       treeCount = densityCount;
@@ -175,7 +184,7 @@ function estimateOrchard(
     totalMann,
     totalKg,
     estimatedValuePKR,
-    confidence: source === "ai_exact" ? "high" : source === "ai_estimate" ? "medium" : "low",
+    confidence: source === "user_override" || source === "ai_exact" ? "high" : source === "ai_estimate" ? "medium" : "low",
     health: healthFrom(ndviRatio),
     notes,
     treeCount,

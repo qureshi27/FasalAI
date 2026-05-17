@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, MapPin, Sparkles, AlertCircle, PencilLine, Search as SearchIcon, RefreshCw } from "lucide-react";
 import { GoogleFieldMap } from "@/components/GoogleFieldMap";
 import { YieldCard } from "@/components/YieldCard";
+import { TreeCountOverride } from "@/components/TreeCountOverride";
 import type { LatLon, Polygon } from "@/lib/geo";
 import type { YieldResult } from "@/lib/yield";
 import type { CropIdentification } from "@/lib/nvidia";
@@ -98,6 +99,42 @@ export default function MapPage() {
     }
   }
 
+  async function recalcWithTreeCount(idx: number, treeCount: number) {
+    const a = analyses[idx];
+    if (!a) return;
+    setAnalyzingIdx(idx);
+    setError(null);
+    try {
+      const res = await fetch("/api/estimate-yield", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cropId: a.identification.cropId,
+          areaAcres: a.polygon.areaAcres,
+          ndvi: a.identification.ndviEstimate,
+          landCover: a.identification.landCover,
+          isHarvested: a.identification.isHarvested,
+          treeCount,
+          treeCountConfidence: "exact",
+          isUserTreeOverride: true
+        })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Recalc failed (${res.status}): ${txt.slice(0, 200)}`);
+      }
+      const updated: YieldResult = await res.json();
+      setAnalyses((prev) => ({
+        ...prev,
+        [idx]: { ...a, yield: updated }
+      }));
+    } catch (e: any) {
+      setError(e.message ?? "Recalc failed");
+    } finally {
+      setAnalyzingIdx(null);
+    }
+  }
+
   function clearAll() {
     setPolygons([]);
     setAnalyses({});
@@ -106,6 +143,9 @@ export default function MapPage() {
   }
 
   const selected = selectedIdx !== null ? analyses[selectedIdx] : null;
+  const selectedCropInfo = selected && selected.identification.cropId !== "unknown"
+    ? CROPS[selected.identification.cropId as CropId]
+    : null;
 
   return (
     <div className="relative pt-[72px]">
@@ -238,6 +278,14 @@ export default function MapPage() {
                 result={selected.yield}
                 confidencePct={Math.round(selected.identification.confidence * 100)}
               />
+              {selectedCropInfo?.kind === "orchard" && (
+                <TreeCountOverride
+                  currentTreeCount={selected.yield.treeCount}
+                  aiTreeCount={selected.identification.treeCount}
+                  disabled={analyzingIdx === selectedIdx}
+                  onApply={(n) => recalcWithTreeCount(selectedIdx!, n)}
+                />
+              )}
               <CropOverride
                 currentCrop={selected.identification.cropId}
                 disabled={analyzingIdx === selectedIdx}
