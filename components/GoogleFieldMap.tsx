@@ -31,28 +31,42 @@ interface Props {
 
 const SCRIPT_ID = "google-maps-js";
 
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (typeof window === "undefined") return Promise.reject(new Error("ssr"));
-  if (window.google?.maps?.drawing) return Promise.resolve();
-  if (window.__gmapsLoading) return window.__gmapsLoading;
+async function loadGoogleMaps(apiKey: string): Promise<void> {
+  if (typeof window === "undefined") throw new Error("ssr");
 
-  window.__gmapsLoading = new Promise((resolve, reject) => {
-    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () => reject(new Error("gmaps load failed")));
-      return;
+  if (!window.google?.maps?.importLibrary) {
+    if (!window.__gmapsLoading) {
+      window.__gmapsLoading = new Promise<void>((resolve, reject) => {
+        const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+        if (existing) {
+          const check = () => {
+            if (window.google?.maps?.importLibrary) resolve();
+            else setTimeout(check, 80);
+          };
+          existing.addEventListener("load", check);
+          existing.addEventListener("error", () => reject(new Error("gmaps load failed")));
+          check();
+          return;
+        }
+        const s = document.createElement("script");
+        s.id = SCRIPT_ID;
+        s.async = true;
+        s.defer = true;
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&loading=async&libraries=places,geometry,drawing&callback=__gmapsReady`;
+        (window as any).__gmapsReady = () => resolve();
+        s.onerror = () => reject(new Error("Failed to load Google Maps"));
+        document.head.appendChild(s);
+      });
     }
-    const s = document.createElement("script");
-    s.id = SCRIPT_ID;
-    s.async = true;
-    s.defer = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry,drawing&v=weekly`;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Failed to load Google Maps"));
-    document.head.appendChild(s);
-  });
-  return window.__gmapsLoading;
+    await window.__gmapsLoading;
+  }
+
+  await Promise.all([
+    window.google.maps.importLibrary("maps"),
+    window.google.maps.importLibrary("drawing"),
+    window.google.maps.importLibrary("geometry"),
+    window.google.maps.importLibrary("places")
+  ]);
 }
 
 export function GoogleFieldMap({
@@ -133,37 +147,41 @@ export function GoogleFieldMap({
           if (c) setCoords({ lat: c.lat(), lon: c.lng() });
         });
 
-        const dm = new window.google.maps.drawing.DrawingManager({
-          drawingMode: null,
-          drawingControl: false,
-          polygonOptions: {
-            strokeColor: "#FFD600",
-            strokeWeight: 3,
-            fillColor: "#FFD600",
-            fillOpacity: 0.2,
-            editable: false,
-            clickable: false
+        try {
+          if (window.google.maps.drawing) {
+            const dm = new window.google.maps.drawing.DrawingManager({
+              drawingMode: null,
+              drawingControl: false,
+              polygonOptions: {
+                strokeColor: "#FFD600",
+                strokeWeight: 3,
+                fillColor: "#FFD600",
+                fillOpacity: 0.2,
+                editable: false,
+                clickable: false
+              }
+            });
+            dm.setMap(map);
+            dm.addListener("polygoncomplete", (poly: any) => {
+              const path = poly.getPath();
+              const coords: LatLon[] = [];
+              for (let i = 0; i < path.getLength(); i++) {
+                const ll = path.getAt(i);
+                coords.push({ lat: ll.lat(), lon: ll.lng() });
+              }
+              poly.setMap(null);
+              dm.setDrawingMode(null);
+              setDrawMode(false);
+              if (coords.length < 3) return;
+              const area = polygonAreaAcres(coords);
+              if (area < 0.05) return;
+              onDrawComplete({ coordinates: coords, areaAcres: area });
+            });
+            drawingManagerRef.current = dm;
           }
-        });
-        dm.setMap(map);
-
-        dm.addListener("polygoncomplete", (poly: any) => {
-          const path = poly.getPath();
-          const coords: LatLon[] = [];
-          for (let i = 0; i < path.getLength(); i++) {
-            const ll = path.getAt(i);
-            coords.push({ lat: ll.lat(), lon: ll.lng() });
-          }
-          poly.setMap(null);
-          dm.setDrawingMode(null);
-          setDrawMode(false);
-          if (coords.length < 3) return;
-          const area = polygonAreaAcres(coords);
-          if (area < 0.05) return;
-          onDrawComplete({ coordinates: coords, areaAcres: area });
-        });
-
-        drawingManagerRef.current = dm;
+        } catch (e) {
+          console.warn("DrawingManager init failed, will retry on first toggle", e);
+        }
         mapRef.current = map;
         setReady(true);
 
@@ -262,8 +280,50 @@ export function GoogleFieldMap({
     }
   }
 
-  function toggleDrawing() {
-    if (!drawingManagerRef.current || !window.google?.maps?.drawing) return;
+  async function toggleDrawing() {
+    if (!mapRef.current || !window.google?.maps) {
+      setLoadError("Map not ready — try refreshing.");
+      return;
+    }
+    if (!window.google.maps.drawing) {
+      try {
+        await window.google.maps.importLibrary("drawing");
+      } catch (e) {
+        setLoadError("Drawing library failed to load. Check that the Maps JavaScript API allows the 'drawing' library on your key.");
+        return;
+      }
+    }
+    if (!drawingManagerRef.current) {
+      const dm = new window.google.maps.drawing.DrawingManager({
+        drawingMode: null,
+        drawingControl: false,
+        polygonOptions: {
+          strokeColor: "#FFD600",
+          strokeWeight: 3,
+          fillColor: "#FFD600",
+          fillOpacity: 0.2,
+          editable: false,
+          clickable: false
+        }
+      });
+      dm.setMap(mapRef.current);
+      dm.addListener("polygoncomplete", (poly: any) => {
+        const path = poly.getPath();
+        const coords: LatLon[] = [];
+        for (let i = 0; i < path.getLength(); i++) {
+          const ll = path.getAt(i);
+          coords.push({ lat: ll.lat(), lon: ll.lng() });
+        }
+        poly.setMap(null);
+        dm.setDrawingMode(null);
+        setDrawMode(false);
+        if (coords.length < 3) return;
+        const area = polygonAreaAcres(coords);
+        if (area < 0.05) return;
+        onDrawComplete({ coordinates: coords, areaAcres: area });
+      });
+      drawingManagerRef.current = dm;
+    }
     const next = !drawMode;
     setDrawMode(next);
     drawingManagerRef.current.setDrawingMode(
