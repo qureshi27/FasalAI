@@ -140,7 +140,7 @@ function parseCropResponse(raw: string): CropIdentification {
 
   try {
     const parsed = JSON.parse(match[0]);
-    const validIds = new Set(CROP_LIST.map((c) => c.id));
+    const validIds = new Set<string>(CROP_LIST.map((c) => c.id));
     const validCovers: LandCover[] = [
       "standing_crop", "orchard", "harvested", "fallow", "water", "non_agricultural", "unknown"
     ];
