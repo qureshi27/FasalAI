@@ -16,6 +16,8 @@ declare global {
   interface Window {
     google?: any;
     __gmapsLoading?: Promise<void>;
+    gm_authFailure?: () => void;
+    __gmapsAuthFailed?: boolean;
   }
 }
 
@@ -61,6 +63,7 @@ export function GoogleFieldMap({
   onPolygonClick
 }: Props) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const keyHint = apiKey ? `${apiKey.slice(0, 6)}…${apiKey.slice(-4)} (len ${apiKey.length})` : "(missing)";
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -76,7 +79,20 @@ export function GoogleFieldMap({
   const [drawMode, setDrawMode] = useState(false);
 
   useEffect(() => {
-    if (!apiKey) { setLoadError("Google Maps key not configured"); return; }
+    if (!apiKey) {
+      setLoadError(
+        "Google Maps key was not inlined at build time. On Vercel, add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (or VITE_GOOGLE_MAPS_API_KEY) under Project Settings → Environment Variables for the Production environment, then redeploy."
+      );
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.gm_authFailure = () => {
+        window.__gmapsAuthFailed = true;
+        setLoadError(
+          `Google rejected the API key (key ${keyHint}). Most likely: the key has HTTP-referer restrictions that don't include this site's domain. Fix in Google Cloud Console → Credentials → your key → Application restrictions. Add an entry like https://${typeof location !== "undefined" ? location.host : "your-site"}/* and save.`
+        );
+      };
+    }
     let cancelled = false;
     loadGoogleMaps(apiKey)
       .then(() => {
@@ -303,10 +319,14 @@ export function GoogleFieldMap({
 
       {loadError && (
         <div className="absolute inset-0 flex items-center justify-center z-30 p-6">
-          <div className="glass border border-amber-400/40 rounded-2xl p-6 max-w-md text-center">
-            <div className="text-amber-400 font-semibold mb-2">Google Maps failed to load</div>
-            <div className="text-sm text-muted">
-              {loadError}. Make sure the key has <strong>Maps JavaScript API</strong>, <strong>Geocoding API</strong>, and <strong>Maps Static API</strong> enabled.
+          <div className="glass border border-amber-400/40 rounded-2xl p-6 max-w-lg">
+            <div className="text-amber-400 font-semibold mb-2 text-center">Google Maps failed to load</div>
+            <div className="text-sm text-muted leading-relaxed">{loadError}</div>
+            <div className="mt-4 pt-4 border-t border-white/10 text-[11px] text-muted-dim font-mono">
+              key: {keyHint}
+            </div>
+            <div className="mt-3 text-[11px] text-muted-dim leading-relaxed">
+              Also verify <strong className="text-white">Maps JavaScript API</strong>, <strong className="text-white">Geocoding API</strong>, and <strong className="text-white">Maps Static API</strong> are enabled in Google Cloud Console.
             </div>
           </div>
         </div>
